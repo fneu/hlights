@@ -1,0 +1,75 @@
+cabal-version:      3.4
+name:               hlights
+version:            0.1.0.0
+synopsis:           Dirigera lights control
+-- description:
+homepage:           https://github.com/fneu/hlights
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Fabian Neuschmidt
+maintainer:         fabian@neuschmidt.de
+-- copyright:
+category:           Network
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common warnings
+    ghc-options: -Wall
+
+
+common extensions
+  default-extensions: OverloadedStrings
+                    , RecordWildCards
+                    , OverloadedRecordDot
+                    , DuplicateRecordFields
+                    , NoFieldSelectors
+
+library
+    import:           warnings
+                    , extensions
+    exposed-modules:  Hlights
+                    , Auth
+    -- other-modules:
+    -- other-extensions:
+    build-depends:    base
+                    , random
+                    , cryptonite
+                    , base64
+                    , memory
+                    , text
+                    , http-conduit
+                    , bytestring
+                    , yaml
+                    , aeson
+                    , connection
+                    , hostname
+    hs-source-dirs:   src
+    default-language: GHC2021
+
+executable hlights
+    import:           warnings
+                    , extensions
+    main-is:          Main.hs
+    -- other-modules:
+    -- other-extensions:
+    build-depends:
+        base,
+        hlights
+
+    hs-source-dirs:   app
+    default-language: GHC2021
+
+executable accesstoken
+    import:           warnings
+                    , extensions
+    main-is:          GetAccessToken.hs
+    -- other-modules:
+    -- other-extensions:
+    build-depends:
+        base,
+        hlights,
+        text
+
+    hs-source-dirs:   app
+    default-language: GHC2021
