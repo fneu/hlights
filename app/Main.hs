@@ -1,7 +1,3 @@
-{-# LANGUAGE ExtendedDefaultRules #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE UndecidableInstances #-}
-
 import Data.Text (Text)
 import Database.SQLite.Simple
 import Lucid
