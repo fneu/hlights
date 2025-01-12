@@ -1,11 +1,20 @@
 module Pages.Counter (counterRoutes, counterPage) where
 
+import Data.Text
 import Database.SQLite.Simple
 import Layout (baseLayout)
 import Lucid
 import Lucid.Htmx
-import Storage (getCounter, updateCounter)
+import Storage (getProperty, updateProperty)
 import Web.Scotty
+
+getCounter :: Connection -> IO Int
+getCounter conn = do
+  prop <- getProperty conn "counter"
+  pure $ maybe 0 read (prop >>= Just . unpack)
+
+updateCounter :: Connection -> Int -> IO ()
+updateCounter conn = updateProperty conn "counter" . pack . show
 
 counterRoutes :: Connection -> ScottyM ()
 counterRoutes conn = do

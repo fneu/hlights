@@ -1,17 +1,22 @@
-module Storage (initializeDB, getCounter, updateCounter) where
+module Storage (initializeDB, getProperty, updateProperty) where
 
+import Data.Text (Text)
 import Database.SQLite.Simple
 
 initializeDB :: Connection -> IO ()
 initializeDB conn = do
-  execute_ conn "CREATE TABLE IF NOT EXISTS Counter (id INTEGER PRIMARY KEY, value INTEGER)"
-  execute_ conn "INSERT OR IGNORE INTO Counter (id, value) VALUES (1, 0)"
+  execute_ conn "CREATE TABLE IF NOT EXISTS Properties (key TEXT PRIMARY KEY, value TEXT)"
 
-getCounter :: Connection -> IO Int
-getCounter conn = do
-  [Only value] <- query_ conn "SELECT value FROM Counter WHERE id = 1"
-  pure value
+getProperty :: Connection -> Text -> IO (Maybe Text)
+getProperty conn prop = do
+  results <- query conn "SELECT value FROM Properties WHERE key = ? LIMIT 1" (Only prop)
+  case results of
+    [Only value] -> pure (Just value)
+    _ -> pure Nothing
 
-updateCounter :: Connection -> Int -> IO ()
-updateCounter conn newValue = do
-  execute conn "UPDATE Counter SET value = ? WHERE id = 1" (Only newValue)
+updateProperty :: Connection -> Text -> Text -> IO ()
+updateProperty conn prop newValue = do
+  execute
+    conn
+    "INSERT INTO Properties (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?"
+    (prop, newValue, newValue)
