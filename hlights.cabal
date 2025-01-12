@@ -28,8 +28,10 @@ common extensions
 library
     import:           warnings
                     , extensions
-    exposed-modules:  Hlights
-                    , Auth
+    exposed-modules:  Auth,
+                      Layout,
+                      Storage,
+                      Pages.Counter
     -- other-modules:
     -- other-extensions:
     build-depends:    base
@@ -37,13 +39,17 @@ library
                     , cryptonite
                     , base64
                     , memory
-                    , text
                     , http-conduit
                     , bytestring
                     , yaml
                     , aeson
                     , connection
                     , hostname
+                    , scotty
+                    , lucid2
+                    , lucid2-htmx
+                    , sqlite-simple
+                    , text
     hs-source-dirs:   src
     default-language: GHC2021
 
@@ -56,10 +62,10 @@ executable hlights
     build-depends:
         base,
         hlights,
-        sqlite-simple,
         scotty,
         lucid2,
         lucid2-htmx,
+        sqlite-simple,
         text
 
     hs-source-dirs:   app
