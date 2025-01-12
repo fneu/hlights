@@ -1,5 +1,11 @@
-import Data.Text.Lazy qualified as TL
+{-# LANGUAGE ExtendedDefaultRules #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE UndecidableInstances #-}
+
+import Data.Text (Text)
 import Database.SQLite.Simple
+import Lucid
+import Lucid.Htmx
 import Web.Scotty
 
 -- Database initialization
@@ -34,26 +40,45 @@ main = do
       counter <- liftIO $ getCounter conn
       liftIO $ close conn
       html $
-        mconcat
-          [ "<h1>Counter: ",
-            TL.pack (show counter),
-            "</h1>",
-            "<button onclick=\"window.location.href='/increment'\">Increment</button>",
-            "<button onclick=\"window.location.href='/decrement'\">Decrement</button>"
-          ]
+        renderText $ do
+          html_ $ do
+            head_ $ do
+              title_ "Counter"
+              link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"]
+              script_ [src_ "https://unpkg.com/htmx.org@2.0.4"] ("" :: Text)
+            body_ $ do
+              h1_ [id_ "counter"] (toHtml . show $ counter)
+              button_
+                [ hxGet_ "/increment",
+                  hxTarget_ "#counter",
+                  hxSwap_ "outerHTML",
+                  class_ "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 mx-4 rounded"
+                ]
+                "inc"
+              button_
+                [ hxGet_ "/decrement",
+                  hxTarget_ "#counter",
+                  hxSwap_ "outerHTML",
+                  class_ "bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 mx-4 rounded"
+                ]
+                "dec"
 
     -- Increment the counter
     get "/increment" $ do
       conn <- liftIO $ open dbFile
       counter <- liftIO $ getCounter conn
-      liftIO $ updateCounter conn (counter + 1)
+      let newCounter = counter + 1
+      liftIO $ updateCounter conn newCounter
       liftIO $ close conn
-      redirect "/"
+      html . renderText $
+        h1_ [id_ "counter"] (toHtml . show $ newCounter)
 
     -- Decrement the counter
     get "/decrement" $ do
       conn <- liftIO $ open dbFile
       counter <- liftIO $ getCounter conn
-      liftIO $ updateCounter conn (counter - 1)
+      let newCounter = counter - 1
+      liftIO $ updateCounter conn newCounter
       liftIO $ close conn
-      redirect "/"
+      html . renderText $
+        h1_ [id_ "counter"] (toHtml . show $ newCounter)

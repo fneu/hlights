@@ -58,6 +58,8 @@ executable hlights
         hlights,
         sqlite-simple,
         scotty,
+        lucid2,
+        lucid2-htmx,
         text
 
     hs-source-dirs:   app
