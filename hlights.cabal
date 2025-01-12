@@ -57,8 +57,7 @@ executable hlights
         base,
         hlights,
         sqlite-simple,
-        effectful,
-        hyperbole==0.4.2,
+        scotty,
         text
 
     hs-source-dirs:   app

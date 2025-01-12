@@ -1,53 +1,59 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TypeFamilies #-}
+import Data.Text.Lazy qualified as TL
+import Database.SQLite.Simple
+import Web.Scotty
 
-module Main where
+-- Database initialization
+initializeDB :: FilePath -> IO ()
+initializeDB dbFile = do
+  conn <- open dbFile
+  execute_ conn "CREATE TABLE IF NOT EXISTS Counter (id INTEGER PRIMARY KEY, value INTEGER)"
+  -- Insert the initial value if it doesn't exist
+  execute_ conn "INSERT OR IGNORE INTO Counter (id, value) VALUES (1, 0)"
+  close conn
 
-import Data.Text (Text)
-import Effectful
-import Web.Hyperbole
+-- Get the current counter value
+getCounter :: Connection -> IO Int
+getCounter conn = do
+  [Only value] <- query_ conn "SELECT value FROM Counter WHERE id = 1"
+  pure value
+
+-- Update the counter value
+updateCounter :: Connection -> Int -> IO ()
+updateCounter conn newValue = do
+  execute conn "UPDATE Counter SET value = ? WHERE id = 1" (Only newValue)
 
 main :: IO ()
 main = do
-  run 3000 $ do
-    liveApp (basicDocument "Hlights") (routeRequest router)
-  where
-    router :: (Hyperbole :> es) => AppRoute -> Eff es Response
-    router Home = runPage page
-    router About = runPage page2
+  let dbFile = "hlights.db"
+  initializeDB dbFile
 
-data AppRoute = Home | About deriving (Eq, Generic, Show)
+  scotty 3000 $ do
+    -- Home route displaying the counter and buttons
+    get "/" $ do
+      conn <- liftIO $ open dbFile
+      counter <- liftIO $ getCounter conn
+      liftIO $ close conn
+      html $
+        mconcat
+          [ "<h1>Counter: ",
+            TL.pack (show counter),
+            "</h1>",
+            "<button onclick=\"window.location.href='/increment'\">Increment</button>",
+            "<button onclick=\"window.location.href='/decrement'\">Decrement</button>"
+          ]
 
-instance Route AppRoute where
-  baseRoute = Just Home
+    -- Increment the counter
+    get "/increment" $ do
+      conn <- liftIO $ open dbFile
+      counter <- liftIO $ getCounter conn
+      liftIO $ updateCounter conn (counter + 1)
+      liftIO $ close conn
+      redirect "/"
 
-page :: (Hyperbole :> es) => Eff es (Page '[Message])
-page = do
-  pure $ col id $ do
-    hyper Message1 $ messageView "Hello"
-    hyper Message2 $ messageView "World!"
-
-page2 :: (Hyperbole :> es) => Eff es (Page '[Message])
-page2 = do
-  pure $ col id $ do
-    hyper Message1 $ messageView "Hello2"
-    hyper Message2 $ messageView "World2"
-
-data Message = Message1 | Message2
-  deriving (Show, Read, ViewId)
-
-instance HyperView Message es where
-  data Action Message = Louder Text
-    deriving (Show, Read, ViewAction)
-
-  update (Louder msg) = do
-    let new = msg <> "!"
-    pure $ messageView new
-
-messageView :: Text -> View Message ()
-messageView msg = do
-  row id $ do
-    button (Louder msg) id "Louder"
-    el_ $ text msg
+    -- Decrement the counter
+    get "/decrement" $ do
+      conn <- liftIO $ open dbFile
+      counter <- liftIO $ getCounter conn
+      liftIO $ updateCounter conn (counter - 1)
+      liftIO $ close conn
+      redirect "/"
