@@ -26,12 +26,15 @@ connectionRoutes = do
     url <- lift baseURL
     html $ renderText $ urlDisplay url
   get "/connection/url/edit" $ html $ renderText urlForm
+  get "/connection/status" $ do
+    connected <- lift isConnected
+    html $ renderText $ connectedDisplay connected
 
 connectionPage :: Text -> Text -> Bool -> Html ()
 connectionPage url token connected = baseLayout $ do
   urlDisplay url
   h1_ [id_ "counter", class_ "text-3xl font-bold mb-4"] (toHtml token)
-  h1_ [id_ "counter", class_ "text-3xl font-bold mb-4"] (toHtml . show $ connected)
+  div_ [hxGet_ "/connection/status", hxTrigger_ "load"] "loading..."
 
 urlDisplay :: Text -> Html ()
 urlDisplay url = do
@@ -50,3 +53,7 @@ urlForm = do
       label_ ":8443/v1"
     button_ [class_ "btn btn-primary", type_ "submit"] "Submit"
     button_ [class_ "btn btn-secondary", hxGet_ "/connection/url"] "Cancel"
+
+connectedDisplay :: Bool -> Html ()
+connectedDisplay True = h1_ [class_ "text-3xl font-bold mb-4 text-green-500"] "Connected"
+connectedDisplay False = h1_ [class_ "text-3xl font-bold mb-4 text-red-500"] "Disconnected"
