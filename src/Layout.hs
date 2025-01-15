@@ -1,11 +1,12 @@
 module Layout (layoutRoutes, baseLayout) where
 
 import Data.Text (Text)
+import Env (AppM)
 import Lucid
 import Lucid.Htmx
-import Web.Scotty
+import Web.Scotty.Trans (ScottyT, get, html)
 
-layoutRoutes :: ScottyM ()
+layoutRoutes :: ScottyT AppM ()
 layoutRoutes = do
   get "/expand-menu" $ html $ renderText hamburgerExpanded
   get "/collapse-menu" $ html $ renderText hamburger

@@ -1,4 +1,4 @@
-module Auth (generateCodeVerifier, requestAuthCode, requestAccessToken) where
+module Auth (generateCodeVerifier, requestAuthCode, requestAccessToken, noSSLVerifyManager) where
 
 import Control.Exception (try)
 import Control.Monad (replicateM)

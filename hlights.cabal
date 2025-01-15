@@ -31,6 +31,8 @@ library
     exposed-modules:  Auth,
                       Layout,
                       Storage,
+                      Dirigera,
+                      Env,
                       Pages.Counter
     -- other-modules:
     -- other-extensions:
@@ -50,6 +52,7 @@ library
                     , lucid2-htmx
                     , sqlite-simple
                     , text
+                    , transformers
     hs-source-dirs:   src
     default-language: GHC2021
 
@@ -66,7 +69,8 @@ executable hlights
         lucid2,
         lucid2-htmx,
         sqlite-simple,
-        text
+        text,
+        transformers
 
     hs-source-dirs:   app
     default-language: GHC2021

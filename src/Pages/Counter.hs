@@ -1,38 +1,39 @@
-module Pages.Counter (counterRoutes, counterPage) where
+module Pages.Counter (Env (..), counterRoutes, counterPage) where
 
+import Control.Monad.Trans.Class (lift)
 import Data.Text
-import Database.SQLite.Simple
+import Env (AppM, Env (..))
 import Layout (baseLayout)
 import Lucid
 import Lucid.Htmx
 import Storage (getProperty, updateProperty)
-import Web.Scotty
+import Web.Scotty.Trans (ScottyT, get, html)
 
-getCounter :: Connection -> IO Int
-getCounter conn = do
-  prop <- getProperty conn "counter"
+getCounter :: AppM Int
+getCounter = do
+  prop <- getProperty "counter"
   pure $ maybe 0 read (prop >>= Just . unpack)
 
-updateCounter :: Connection -> Int -> IO ()
-updateCounter conn = updateProperty conn "counter" . pack . show
+updateCounter :: Int -> AppM ()
+updateCounter i = updateProperty "counter" (pack . show $ i)
 
-counterRoutes :: Connection -> ScottyM ()
-counterRoutes conn = do
+counterRoutes :: ScottyT AppM ()
+counterRoutes = do
   get "/counter" $ do
-    counter <- liftIO $ getCounter conn
+    counter <- lift getCounter
     html $ renderText $ counterPage counter
 
   get "/counter/increment" $ do
-    counter <- liftIO $ getCounter conn
+    counter <- lift getCounter
     let newCounter = counter + 1
-    liftIO $ updateCounter conn newCounter
+    lift $ updateCounter newCounter
     html . renderText $
       h1_ [id_ "counter", class_ "text-3xl font-bold mb-4"] (toHtml . show $ newCounter)
 
   get "/counter/decrement" $ do
-    counter <- liftIO $ getCounter conn
+    counter <- lift getCounter
     let newCounter = counter - 1
-    liftIO $ updateCounter conn newCounter
+    lift $ updateCounter newCounter
     html . renderText $
       h1_ [id_ "counter", class_ "text-3xl font-bold mb-4"] (toHtml . show $ newCounter)
 
