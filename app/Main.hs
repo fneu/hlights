@@ -5,6 +5,7 @@ import Database.SQLite.Simple
 import Env (Env (..), runApp)
 import Layout (layoutRoutes)
 import Pages.Counter (counterRoutes)
+import Pages.Connection (connectionRoutes)
 import Storage
 import Web.Scotty.Trans (get, redirect, scottyT)
 
@@ -17,3 +18,4 @@ main = do
       get "/" $ redirect "/counter"
       layoutRoutes
       counterRoutes
+      connectionRoutes

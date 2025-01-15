@@ -14,6 +14,7 @@ layoutRoutes = do
 navLinks :: Html ()
 navLinks = ul_ [class_ "space-y-2"] $ do
   li_ [class_ "hover:bg-gray-400 p-2 rounded"] $ a_ [href_ "/counter"] "Counter"
+  li_ [class_ "hover:bg-gray-400 p-2 rounded"] $ a_ [href_ "/connection"] "Connection"
 
 hamburger :: Html ()
 hamburger = do

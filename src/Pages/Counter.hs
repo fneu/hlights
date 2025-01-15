@@ -1,8 +1,8 @@
-module Pages.Counter (Env (..), counterRoutes, counterPage) where
+module Pages.Counter (counterRoutes, counterPage) where
 
 import Control.Monad.Trans.Class (lift)
 import Data.Text
-import Env (AppM, Env (..))
+import Env (AppM)
 import Layout (baseLayout)
 import Lucid
 import Lucid.Htmx

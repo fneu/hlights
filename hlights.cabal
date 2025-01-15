@@ -32,8 +32,10 @@ library
                       Layout,
                       Storage,
                       Dirigera,
+                      Dirigera.Devices,
                       Env,
-                      Pages.Counter
+                      Pages.Counter,
+                      Pages.Connection
     -- other-modules:
     -- other-extensions:
     build-depends:    base
