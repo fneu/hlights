@@ -15,8 +15,7 @@ connectionRoutes = do
   get "/connection" $ do
     url <- lift baseURL
     token <- lift authToken
-    connected <- lift isConnected
-    html $ renderText $ connectionPage url token connected
+    html $ renderText $ connectionPage url token
   get "/connection/url" $ do
     url <- lift baseURL
     html $ renderText $ urlDisplay url
@@ -30,10 +29,10 @@ connectionRoutes = do
     connected <- lift isConnected
     html $ renderText $ connectedDisplay connected
 
-connectionPage :: Text -> Text -> Bool -> Html ()
-connectionPage url token connected = baseLayout $ do
+connectionPage :: Text -> Text -> Html ()
+connectionPage url token = baseLayout $ do
   urlDisplay url
-  h1_ [id_ "counter", class_ "text-3xl font-bold mb-4"] (toHtml token)
+  tokenDisplay token
   div_ [hxGet_ "/connection/status", hxTrigger_ "load"] "loading..."
 
 urlDisplay :: Text -> Html ()
@@ -43,6 +42,17 @@ urlDisplay url = do
       label_ "URL: "
       toHtml url
     button_ [class_ "btn btn-primary", hxGet_ "/connection/url/edit"] "Change"
+
+tokenDisplay :: Text -> Html ()
+tokenDisplay token = do
+  div_ [hxTarget_ "this", hxSwap_ "outerHTML"] $ do
+    div_ $ do
+      label_ "Token acquired: "
+      if token == "" then "No" else "Yes"
+    button_ [class_ "btn btn-primary", hxGet_ "/connection/connect"] $ if token == "" then "Connect" else "Reconnect"
+
+-- TODO: Trigger authentication
+-- TODO: Add ability to disconnect
 
 urlForm :: Html ()
 urlForm = do
