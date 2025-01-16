@@ -1,5 +1,6 @@
 module Auth (generateCodeVerifier, requestAuthCode, requestAccessToken, noSSLVerifyManager) where
 
+import Control.Concurrent (threadDelay)
 import Control.Exception (try)
 import Control.Monad (replicateM)
 import Crypto.Hash (SHA256 (..), hashWith)
@@ -78,8 +79,8 @@ requestAuthCode ip codeVerifier = do
           return Nothing
         Right codeResponse -> return $ Just codeResponse.code
 
-requestAccessToken :: Text -> Text -> Text -> IO (Maybe Text)
-requestAccessToken ip codeVerifier authCode = do
+requestAccessToken :: Int -> Text -> Text -> Text -> IO (Maybe Text)
+requestAccessToken retries ip codeVerifier authCode = do
   manager <- noSSLVerifyManager
   hostname <- getHostName
   request' <- parseRequest ("POST https://" ++ unpack ip ++ ":8443/v1/oauth/token")
@@ -105,6 +106,12 @@ requestAccessToken ip codeVerifier authCode = do
       let body = getResponseBody response
       case eitherDecode body :: Either String TokenResponse of
         Left err -> do
-          putStrLn $ "Error parsing JSON: " ++ show body ++ "\n" ++ err
-          return Nothing
+          if retries <= 0
+            then do
+              putStrLn $ "Error parsing JSON: " ++ show body ++ "\n" ++ err
+              return Nothing
+            else do
+              putStrLn $ "retrying " <> show retries <> " more times..."
+              threadDelay $ 1000 * 1000
+              requestAccessToken (retries - 1) ip codeVerifier authCode
         Right tokenResponse -> return $ Just tokenResponse.access_token

@@ -76,17 +76,3 @@ executable hlights
 
     hs-source-dirs:   app
     default-language: GHC2021
-
-executable accesstoken
-    import:           warnings
-                    , extensions
-    main-is:          GetAccessToken.hs
-    -- other-modules:
-    -- other-extensions:
-    build-depends:
-        base,
-        hlights,
-        text
-
-    hs-source-dirs:   app
-    default-language: GHC2021

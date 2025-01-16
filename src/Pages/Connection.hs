@@ -1,13 +1,16 @@
 module Pages.Connection (connectionRoutes) where
 
+import Auth qualified
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Class (lift)
+import Data.Maybe (fromMaybe)
 import Data.Text
 import Dirigera (authToken, baseURL, isConnected)
 import Env (AppM)
 import Layout (baseLayout)
 import Lucid
 import Lucid.Htmx
-import Storage (updateProperty)
+import Storage (getProperty, updateProperty)
 import Web.Scotty.Trans (ScottyT, formParam, get, html, put)
 
 connectionRoutes :: ScottyT AppM ()
@@ -28,6 +31,29 @@ connectionRoutes = do
   get "/connection/status" $ do
     connected <- lift isConnected
     html $ renderText $ connectedDisplay connected
+  get "/connection/disconnect" $ do
+    lift $ updateProperty "DIRIGERA_TOKEN" ""
+    token <- lift authToken
+    html $ renderText $ tokenDisplay token
+  get "/connection/connect" $ do
+    html $ renderText tokenLoading
+  get "/connection/connectRequest" $ do
+    ip <- lift $ Storage.getProperty "DIRIGERA_IP"
+    codeVerifier <- liftIO Auth.generateCodeVerifier
+    maybeCode <- liftIO $ Auth.requestAuthCode (fromMaybe "homesmart.local" ip) codeVerifier
+    case maybeCode of
+      Nothing -> do
+        lift $ updateProperty "DIRIGERA_TOKEN" ""
+        html $ renderText $ tokenDisplay ""
+      Just code -> do
+        maybeToken <- liftIO $ Auth.requestAccessToken 59 (fromMaybe "homesmart.local" ip) codeVerifier code
+        case maybeToken of
+          Nothing -> do
+            lift $ updateProperty "DIRIGERA_TOKEN" ""
+            html $ renderText $ tokenDisplay ""
+          Just token -> do
+            lift $ updateProperty "DIRIGERA_TOKEN" token
+            html $ renderText $ tokenDisplay token
 
 connectionPage :: Text -> Text -> Html ()
 connectionPage url token = baseLayout $ do
@@ -50,9 +76,11 @@ tokenDisplay token = do
       label_ "Token acquired: "
       if token == "" then "No" else "Yes"
     button_ [class_ "btn btn-primary", hxGet_ "/connection/connect"] $ if token == "" then "Connect" else "Reconnect"
+    button_ [class_ "btn btn-primary", hxGet_ "/connection/disconnect"] "Disconnect"
 
--- TODO: Trigger authentication
--- TODO: Add ability to disconnect
+tokenLoading :: Html ()
+tokenLoading = do
+  div_ [hxGet_ "/connection/connectRequest", hxTrigger_ "load"] "Please press Dirigera Action Button!"
 
 urlForm :: Html ()
 urlForm = do
