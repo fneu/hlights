@@ -21,20 +21,22 @@ connectionRoutes = do
     html $ renderText $ connectionPage url token
   get "/connection/url" $ do
     url <- lift baseURL
-    html $ renderText $ urlDisplay url
+    token <- lift authToken
+    html $ renderText $ connectionContainer url token
   put "/connection/url" $ do
     ip <- formParam "ip"
     lift $ updateProperty "DIRIGERA_IP" ip
     url <- lift baseURL
-    html $ renderText $ urlDisplay url
+    token <- lift authToken
+    html $ renderText $ connectionContainer url token
   get "/connection/url/edit" $ html $ renderText urlForm
   get "/connection/status" $ do
     connected <- lift isConnected
     html $ renderText $ connectedDisplay connected
   get "/connection/disconnect" $ do
     lift $ updateProperty "DIRIGERA_TOKEN" ""
-    token <- lift authToken
-    html $ renderText $ tokenDisplay token
+    url <- lift baseURL
+    html $ renderText $ connectionContainer url ""
   get "/connection/connect" $ do
     html $ renderText tokenLoading
   get "/connection/connectRequest" $ do
@@ -53,13 +55,18 @@ connectionRoutes = do
             html $ renderText $ tokenDisplay ""
           Just token -> do
             lift $ updateProperty "DIRIGERA_TOKEN" token
-            html $ renderText $ tokenDisplay token
+            url <- lift baseURL
+            html $ renderText $ connectionContainer url token
 
 connectionPage :: Text -> Text -> Html ()
-connectionPage url token = baseLayout $ do
-  urlDisplay url
-  tokenDisplay token
-  div_ [hxGet_ "/connection/status", hxTrigger_ "load"] "loading..."
+connectionPage url token = baseLayout $ connectionContainer url token
+
+connectionContainer :: Text -> Text -> Html ()
+connectionContainer url token = do
+  div_ [id_ "connectionContainer"] $ do
+    urlDisplay url
+    tokenDisplay token
+    div_ [hxGet_ "/connection/status", hxTrigger_ "load", id_ "statusArea"] "loading..."
 
 urlDisplay :: Text -> Html ()
 urlDisplay url = do
@@ -69,22 +76,9 @@ urlDisplay url = do
       toHtml url
     button_ [class_ "btn btn-primary", hxGet_ "/connection/url/edit"] "Change"
 
-tokenDisplay :: Text -> Html ()
-tokenDisplay token = do
-  div_ [hxTarget_ "this", hxSwap_ "outerHTML"] $ do
-    div_ $ do
-      label_ "Token acquired: "
-      if token == "" then "No" else "Yes"
-    button_ [class_ "btn btn-primary", hxGet_ "/connection/connect"] $ if token == "" then "Connect" else "Reconnect"
-    button_ [class_ "btn btn-primary", hxGet_ "/connection/disconnect"] "Disconnect"
-
-tokenLoading :: Html ()
-tokenLoading = do
-  div_ [hxGet_ "/connection/connectRequest", hxTrigger_ "load"] "Please press Dirigera Action Button!"
-
 urlForm :: Html ()
 urlForm = do
-  form_ [hxPut_ "/connection/url", hxTarget_ "this", hxSwap_ "outerHTML"] $ do
+  form_ [hxPut_ "/connection/url", hxTarget_ "#connectionContainer", hxSwap_ "outerHTML"] $ do
     div_ $ do
       label_ "URL: https://"
       input_ [type_ "text", name_ "ip", value_ ""]
@@ -92,6 +86,23 @@ urlForm = do
     button_ [class_ "btn btn-primary", type_ "submit"] "Submit"
     button_ [class_ "btn btn-secondary", hxGet_ "/connection/url"] "Cancel"
 
+tokenDisplay :: Text -> Html ()
+tokenDisplay token = do
+  div_ [hxTarget_ "this", hxSwap_ "outerHTML"] $ do
+    div_ $ do
+      label_ "Token acquired: "
+      if token == "" then "No" else "Yes"
+    button_ [class_ "btn btn-primary", hxGet_ "/connection/connect"] $ if token == "" then "Connect" else "Reconnect"
+    button_ [class_ "btn btn-primary", hxGet_ "/connection/disconnect", hxTarget_ "#connectionContainer"] "Disconnect"
+
+tokenLoading :: Html ()
+tokenLoading = do
+  div_ [hxGet_ "/connection/connectRequest", hxTrigger_ "load", hxTarget_ "#connectionContainer"] "Please press Dirigera Action Button!"
+
 connectedDisplay :: Bool -> Html ()
-connectedDisplay True = h1_ [class_ "text-3xl font-bold mb-4 text-green-500"] "Connected"
-connectedDisplay False = h1_ [class_ "text-3xl font-bold mb-4 text-red-500"] "Disconnected"
+connectedDisplay isCon = do
+  h1_ ([class_ "text-3xl font-bold mb-4"] <> conClass) conText
+  button_ [class_ "btn btn-primary", hxGet_ "/connection/url", hxTarget_ "#connectionContainer"] "Refresh"
+  where
+    conClass = if isCon then [class_ "text-green-500"] else [class_ "text-red-500"]
+    conText = if isCon then "Connected" else "Disconnected"
