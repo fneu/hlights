@@ -1,4 +1,4 @@
-module Dirigera (baseURL, authToken, isConnected) where
+module Dirigera (baseURL, ipAddr, authToken, isConnected) where
 
 import Auth (noSSLVerifyManager)
 import Control.Exception.Base (try)
@@ -17,6 +17,11 @@ baseURL :: AppM Text
 baseURL = do
   ip <- Storage.getProperty "DIRIGERA_IP"
   pure $ "https://" <> fromMaybe "homesmart.local" ip <> ":8443/v1"
+
+ipAddr :: AppM Text
+ipAddr = do
+  ip <- Storage.getProperty "DIRIGERA_IP"
+  pure $ fromMaybe "homesmart.local" ip
 
 authToken :: AppM Text
 authToken = do
