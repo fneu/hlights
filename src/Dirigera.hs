@@ -1,4 +1,4 @@
-module Dirigera (baseURL, ipAddr, authToken, isConnected) where
+module Dirigera (baseURL, ipAddr, authToken, isConnected, isReachable) where
 
 import Auth (noSSLVerifyManager)
 import Control.Exception.Base (try)
@@ -27,6 +27,19 @@ authToken :: AppM Text
 authToken = do
   token <- Storage.getProperty "DIRIGERA_TOKEN"
   pure $ fromMaybe "" token
+
+isReachable :: AppM Bool
+isReachable = do
+  url <- baseURL
+  manager <- liftIO noSSLVerifyManager
+  request' <- parseRequest ("GET " <> unpack url <> "/hub/status")
+  let request = setRequestManager manager request'
+  responseResult <- liftIO $ try (httpLBS request) :: AppM (Either HttpException (Response LBS.ByteString))
+  case responseResult of
+    Left _ -> do
+      pure False
+    Right _ -> do
+      pure True
 
 isConnected :: AppM Bool
 isConnected = do

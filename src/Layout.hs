@@ -46,7 +46,12 @@ baseLayout content = html_ $ do
     title_ "Hlights"
     meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1.0"]
     link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"]
-    script_ [src_ "https://unpkg.com/htmx.org@2.0.4"] ("" :: Text)
+    script_
+      [ src_ "https://unpkg.com/htmx.org@2.0.4",
+        integrity_ "sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+",
+        crossorigin_ "anonymous"
+      ]
+      ("" :: Text)
     link_ [rel_ "stylesheet", href_ "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"]
   body_ $ do
     -- Mobile menu
