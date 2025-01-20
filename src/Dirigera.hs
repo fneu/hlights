@@ -54,13 +54,11 @@ isConnected = do
             request'
   responseResult <- liftIO $ try (httpLBS request) :: AppM (Either HttpException (Response LBS.ByteString))
   case responseResult of
-    Left ex -> do
-      liftIO $ putStrLn $ "Error checking connection: " <> show ex
+    Left _ -> do
       pure False
     Right response -> do
       let body = getResponseBody response
       case eitherDecode body :: Either String Device of
-        Left err -> do
-          liftIO $ putStrLn $ "Error parsing JSON to Device: " <> err
+        Left _ -> do
           pure False
         Right statusResponse -> pure statusResponse.isReachable

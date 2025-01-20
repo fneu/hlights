@@ -111,7 +111,6 @@ requestAccessToken retries ip codeVerifier authCode = do
               putStrLn $ "Error parsing JSON: " ++ show body ++ "\n" ++ err
               return Nothing
             else do
-              putStrLn $ "retrying " <> show retries <> " more times..."
               threadDelay $ 1000 * 1000
               requestAccessToken (retries - 1) ip codeVerifier authCode
         Right tokenResponse -> return $ Just tokenResponse.access_token
