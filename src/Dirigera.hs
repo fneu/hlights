@@ -1,10 +1,11 @@
-module Dirigera (baseURL, ipAddr, authToken, isConnected, isReachable) where
+module Dirigera (baseURL, ipAddr, authToken, isConnected, isReachable, fetchLights) where
 
 import Auth (noSSLVerifyManager)
 import Control.Exception.Base (try)
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson (eitherDecode)
 import Data.ByteString.Lazy.Char8 qualified as LBS
+import Data.Map (Map, fromList)
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, unpack)
 import Data.Text.Encoding (encodeUtf8)
@@ -62,3 +63,27 @@ isConnected = do
         Left _ -> do
           pure False
         Right statusResponse -> pure statusResponse.isReachable
+
+fetchLights :: AppM (Map Text Device)
+fetchLights = do
+  url <- baseURL
+  token <- authToken
+  manager <- liftIO noSSLVerifyManager
+  request' <- parseRequest ("GET " <> unpack url <> "/devices")
+  let request =
+        setRequestManager manager $
+          setRequestHeaders
+            [("Authorization", encodeUtf8 $ "Bearer " <> token)]
+            request'
+  responseResult <- liftIO $ try (httpLBS request) :: AppM (Either HttpException (Response LBS.ByteString))
+  case responseResult of
+    Left _ -> do
+      pure mempty
+    Right response -> do
+      let body = getResponseBody response
+      case eitherDecode body :: Either String [Device] of
+        Left _ -> do
+          pure mempty
+        Right devices -> do
+          let lights = filter (\d -> d.deviceType == "light") devices
+          pure $ fromList $ map (\d -> (d.id, d)) lights

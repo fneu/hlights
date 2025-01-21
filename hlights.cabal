@@ -55,6 +55,8 @@ library
                     , sqlite-simple
                     , text
                     , transformers
+                    , stm
+                    , containers
     hs-source-dirs:   src
     default-language: GHC2021
 
@@ -72,7 +74,9 @@ executable hlights
         lucid2-htmx,
         sqlite-simple,
         text,
-        transformers
+        transformers,
+        stm,
+        containers
 
     hs-source-dirs:   app
     default-language: GHC2021
