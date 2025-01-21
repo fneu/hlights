@@ -7,7 +7,7 @@ import Dirigera (fetchLights, isConnected)
 import Env (Env (..), runApp)
 import Layout (layoutRoutes)
 import Pages.Connection (connectionRoutes)
-import Pages.Counter (counterRoutes)
+import Pages.Home (homeRoutes)
 import Storage
 import Web.Scotty.Trans (get, redirect, scottyT)
 
@@ -25,7 +25,7 @@ main = do
       else putStrLn "Not connected to Dirigera, Proceeding without initial lights."
 
     scottyT 3000 (runApp $ Env conn lights) $ do
-      get "/" $ redirect "/connection"
+      get "/" $ redirect "/home"
       layoutRoutes
-      counterRoutes
       connectionRoutes
+      homeRoutes

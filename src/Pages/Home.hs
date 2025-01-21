@@ -1,4 +1,4 @@
-module Pages.Counter (counterRoutes, counterPage) where
+module Pages.Home (homeRoutes, homePage) where
 
 import Control.Monad.Trans.Class (lift)
 import Data.Text
@@ -17,11 +17,11 @@ getCounter = do
 updateCounter :: Int -> AppM ()
 updateCounter i = updateProperty "counter" (pack . show $ i)
 
-counterRoutes :: ScottyT AppM ()
-counterRoutes = do
-  get "/counter" $ do
+homeRoutes :: ScottyT AppM ()
+homeRoutes = do
+  get "/home" $ do
     counter <- lift getCounter
-    html $ renderText $ counterPage counter
+    html $ renderText $ homePage counter
 
   get "/counter/increment" $ do
     counter <- lift getCounter
@@ -37,8 +37,8 @@ counterRoutes = do
     html . renderText $
       h1_ [id_ "counter", class_ "text-3xl font-bold mb-4"] (toHtml . show $ newCounter)
 
-counterPage :: Int -> Html ()
-counterPage counter = baseLayout $ do
+homePage :: Int -> Html ()
+homePage counter = baseLayout $ do
   h1_ [id_ "counter", class_ "text-3xl font-bold mb-4"] (toHtml . show $ counter)
   div_ $ do
     button_

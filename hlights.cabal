@@ -34,7 +34,7 @@ library
                       Dirigera,
                       Dirigera.Devices,
                       Env,
-                      Pages.Counter,
+                      Pages.Home,
                       Pages.Connection
     -- other-modules:
     -- other-extensions:

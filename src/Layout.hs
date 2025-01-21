@@ -4,16 +4,19 @@ import Data.Text (Text)
 import Env (AppM)
 import Lucid
 import Lucid.Htmx
-import Web.Scotty.Trans (ScottyT, get, html)
+import Web.Scotty.Trans (ScottyT, file, get, html, setHeader)
 
 layoutRoutes :: ScottyT AppM ()
 layoutRoutes = do
+  get "/favicon.svg" $ do
+    setHeader "Content-Type" "image/svg+xml"
+    file "static/favicon.svg"
   get "/expand-menu" $ html $ renderText hamburgerExpanded
   get "/collapse-menu" $ html $ renderText hamburger
 
 navLinks :: Html ()
 navLinks = ul_ [class_ "space-y-2"] $ do
-  li_ [class_ "hover:bg-gray-400 p-2 rounded"] $ a_ [href_ "/counter"] "Counter"
+  li_ [class_ "hover:bg-gray-400 p-2 rounded"] $ a_ [href_ "/home"] "Home"
   li_ [class_ "hover:bg-gray-400 p-2 rounded"] $ a_ [href_ "/connection"] "Connection"
 
 hamburger :: Html ()
@@ -45,6 +48,7 @@ baseLayout content = html_ $ do
   head_ $ do
     title_ "Hlights"
     meta_ [name_ "viewport", content_ "width=device-width, initial-scale=1.0"]
+    link_ [rel_ "icon", type_ "image/svg+xml", href_ "/favicon.svg"]
     link_ [rel_ "stylesheet", href_ "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"]
     script_
       [ src_ "https://unpkg.com/htmx.org@2.0.4",
