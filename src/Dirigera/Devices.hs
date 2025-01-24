@@ -19,8 +19,17 @@ data Device = Device
   { id :: Text,
     deviceType :: Text,
     isReachable :: Bool,
-    attributes :: Attributes
+    attributes :: Attributes,
+    deviceSet :: [DeviceSet]
   }
   deriving (Show, Eq, Generic)
 
 instance FromJSON Device
+
+data DeviceSet = DeviceSet
+  { id :: Text,
+    name :: Text
+  }
+  deriving (Show, Eq, Generic)
+
+instance FromJSON DeviceSet
