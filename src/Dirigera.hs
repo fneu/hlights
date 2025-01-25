@@ -6,7 +6,7 @@ import Control.Concurrent.STM.TVar (modifyTVar')
 import Control.Exception.Base (try)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Reader (asks)
-import Data.Aeson (eitherDecode, object, (.=))
+import Data.Aeson (ToJSON, eitherDecode, object, (.=))
 import Data.ByteString.Lazy.Char8 qualified as LBS
 import Data.Map (Map, fromList)
 import Data.Map qualified as M
@@ -92,42 +92,45 @@ fetchLights = do
           let lights = filter (\d -> d.deviceType == "light") devices
           pure $ fromList $ map (\d -> (d.id, d)) lights
 
-switchIsOn :: DeviceSet -> Bool -> AppM ()
-switchIsOn device setOn = do
-  url <- baseURL
+patchRequest :: (ToJSON a) => Text -> a -> AppM Bool
+patchRequest url body = do
+  baseUrl <- baseURL
   token <- authToken
   manager <- liftIO noSSLVerifyManager
-  request' <- parseRequest ("PATCH " <> unpack url <> "/devices/set/" <> unpack device.id)
-
+  request' <- parseRequest ("PATCH " <> unpack baseUrl <> unpack url)
   let request =
         setRequestManager manager
           $ setRequestHeaders
             [ ("Authorization", encodeUtf8 $ "Bearer " <> token),
               ("Content-Type", "application/json")
             ]
-          $ setRequestBodyJSON
-            [object ["attributes" .= object ["isOn" .= setOn]]]
-            request'
+          $ setRequestBodyJSON body request'
   response <- liftIO $ try (httpLBS request) :: AppM (Either HttpException (Response LBS.ByteString))
   case response of
-    Left _ -> do
-      liftIO $ putStrLn "Failed to switch device (exception)"
-      pure ()
+    Left ex -> do
+      liftIO $ print ex
+      pure False
     Right r -> do
-      let status = getResponseStatusCode r
-      case status of
-        202 -> do
-          liftIO $ putStrLn $ "Switched device " <> unpack device.id <> " to " <> if setOn then "on" else "off"
-          liftIO $ print r
-          lights <- asks (.lights)
-          _ <- liftIO $ atomically $ do
-            modifyTVar' lights $ \l -> fromMaybe l $ do
-              let affected = filter (\d -> device `elem` d.deviceSet) (M.elems l)
-              let switched = map (\d -> d {attributes = d.attributes {isOn = Just setOn}}) affected
-              pure $ fromList $ map (\d -> (d.id, d)) switched
-          liftIO $ putStrLn "Switched device"
-          pure ()
+      case getResponseStatusCode r of
+        200 -> pure True
+        202 -> pure True
         _ -> do
-          liftIO $ putStrLn "Failed to switch device (status code != 200)"
           liftIO $ print r
-          pure ()
+          pure False
+
+switchIsOn :: DeviceSet -> Bool -> AppM ()
+switchIsOn device setOn = do
+  let url = "/devices/set/" <> device.id
+  let body = [object ["attributes" .= object ["isOn" .= setOn]]]
+  success <- patchRequest url body
+  if success
+    then do
+      lights <- asks (.lights)
+      _ <- liftIO $ atomically $ do
+        modifyTVar' lights $ \l -> fromMaybe l $ do
+          let affected = filter (\d -> device `elem` d.deviceSet) (M.elems l)
+          let switched = map (\d -> d {attributes = d.attributes {isOn = Just setOn}}) affected
+          pure $ fromList $ map (\d -> (d.id, d)) switched
+      pure ()
+    else do
+      pure ()
