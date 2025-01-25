@@ -21,7 +21,7 @@ navLinks = ul_ [class_ "space-y-2"] $ do
 
 hamburger :: Html ()
 hamburger = do
-  div_ [class_ "lg:hidden bg-gray-800 text-white flex items-center justify-between p-4 shadow-md"] $ do
+  div_ [class_ "fixed top-0 left-0 right-0 lg:hidden bg-gray-800 text-white flex items-center justify-between p-4 shadow-md z-50"] $ do
     h1_ [class_ "text-xl font-bold"] "Menu"
     button_
       [ class_ "bg-gray-800 text-white focus:outline-none text-2xl p-2 rounded-md",
@@ -32,7 +32,7 @@ hamburger = do
 
 hamburgerExpanded :: Html ()
 hamburgerExpanded = do
-  div_ [class_ "lg:hidden bg-gray-800 text-white flex-col p-4 shadow-md"] $ do
+  div_ [class_ "fixed top-0 left-0 right-0 lg:hidden bg-gray-800 text-white flex-col p-4 shadow-md z-50"] $ do
     div_ [class_ "flex justify-between items-center"] $ do
       h1_ [class_ "text-xl font-bold"] "Menu"
       button_
@@ -57,7 +57,7 @@ baseLayout content = html_ $ do
       ]
       ("" :: Text)
     link_ [rel_ "stylesheet", href_ "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"]
-  body_ $ do
+  body_ [class_ "bg-gray-100"] $ do
     -- Mobile menu
     div_ [id_ "mobile-menu"] $ do
       hamburger
@@ -68,4 +68,5 @@ baseLayout content = html_ $ do
         h2_ [class_ "text-2xl font-bold mb-4"] "Menu"
         navLinks
       -- Content area
-      div_ [class_ "flex-1 p-4 bg-gray-100"] content
+      div_ [class_ "flex-1 mt-2 lg:mt-0"] $ do
+        div_ [class_ "w-full p-4 bg-gray-100 mt-16 lg:mt-0"] content
