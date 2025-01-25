@@ -1,4 +1,4 @@
-module Dirigera (switchIsOn, baseURL, ipAddr, authToken, isConnected, isReachable, fetchLights) where
+module Dirigera (switchIsOn, setColorTemperature, setLightLevel, baseURL, ipAddr, authToken, isConnected, isReachable, fetchLights) where
 
 import Auth (noSSLVerifyManager)
 import Control.Concurrent.STM (atomically)
@@ -128,9 +128,63 @@ switchIsOn device setOn = do
       lights <- asks (.lights)
       _ <- liftIO $ atomically $ do
         modifyTVar' lights $ \l -> fromMaybe l $ do
-          let affected = filter (\d -> device `elem` d.deviceSet) (M.elems l)
-          let switched = map (\d -> d {attributes = d.attributes {isOn = Just setOn}}) affected
-          pure $ fromList $ map (\d -> (d.id, d)) switched
+          Just $
+            M.map
+              ( \d ->
+                  if device `elem` d.deviceSet
+                    then
+                      d {attributes = d.attributes {isOn = Just setOn}}
+                    else d
+              )
+              l
+      pure ()
+    else do
+      pure ()
+
+type Milliseconds = Int
+
+setColorTemperature :: DeviceSet -> Int -> Milliseconds -> AppM ()
+setColorTemperature device temp transitionTime = do
+  let url = "/devices/set/" <> device.id
+  let body = [object ["attributes" .= object ["colorTemperature" .= temp], "transitionTime" .= transitionTime]]
+  success <- patchRequest url body
+  if success
+    then do
+      lights <- asks (.lights)
+      _ <- liftIO $ atomically $ do
+        modifyTVar' lights $ \l -> fromMaybe l $ do
+          Just $
+            M.map
+              ( \d ->
+                  if device `elem` d.deviceSet
+                    then
+                      d {attributes = d.attributes {colorTemperature = Just temp}}
+                    else d
+              )
+              l
+      pure ()
+    else do
+      pure ()
+
+setLightLevel :: DeviceSet -> Int -> Milliseconds -> AppM ()
+setLightLevel device level transitionTime = do
+  let url = "/devices/set/" <> device.id
+  let body = [object ["attributes" .= object ["lightLevel" .= level], "transitionTime" .= transitionTime]]
+  success <- patchRequest url body
+  if success
+    then do
+      lights <- asks (.lights)
+      _ <- liftIO $ atomically $ do
+        modifyTVar' lights $ \l -> fromMaybe l $ do
+          Just $
+            M.map
+              ( \d ->
+                  if device `elem` d.deviceSet
+                    then
+                      d {attributes = d.attributes {lightLevel = Just level}}
+                    else d
+              )
+              l
       pure ()
     else do
       pure ()
