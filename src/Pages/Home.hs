@@ -58,13 +58,10 @@ homePage :: [DeviceSet] -> M.Map Text Device -> Html ()
 homePage lamps lights = do
   div_
     [ id_ "homePage",
-      class_ "flex flex-col items-center max-w-lg mx-auto p-4 space-y-4",
-      hxSwap_ "outerHTML"
+      class_ "flex flex-col items-center md:items-center md:max-w-2xl mx-auto p-4 space-y-4 w-full"
     ]
     $ do
       forM_ lamps $ \lamp -> lampCard lamp lights
-
--- TODO: check is isReachable
 
 lampCard :: DeviceSet -> M.Map Text Device -> Html ()
 lampCard lamp lights = do
@@ -72,10 +69,11 @@ lampCard lamp lights = do
   -- TODO: Implement schedule check
   let onSchedule = lamp.name == "Wohnzimmerlampe"
   let isOn = any (\d -> fromMaybe False d.attributes.isOn) lampDevices
+  let isReachable = any (\d -> d.isReachable) lampDevices
   let lightLevel = fromMaybe 0 (head lampDevices).attributes.lightLevel
   let colorTemperature = fromMaybe 0 (head lampDevices).attributes.colorTemperature
   div_
-    [ class_ "flex flex-col bg-gray-50 p-3 rounded shadow space-y-4",
+    [ class_ "flex flex-col bg-gray-50 p-3 rounded shadow space-y-4 w-full",
       hxTarget_ "this",
       hxSwap_ "outerHTML"
     ]
@@ -91,10 +89,10 @@ lampCard lamp lights = do
           then button_ [class_ "inline-block rounded-md px-3 py-1 w-12 h-12 bg-white shadow-md border border-gray-300"] $ do
             i_ [class_ "fas fa-clock-rotate-left text-gray-600"] ""
           else mempty
-      div_ [class_ "flex items-center justify-between space-x-4"] $ do
+      div_ [class_ "flex items-center justify-between"] $ do
         if isOn
-          then ovalButton "power-off" ("/home/switchLamp?toOn=false&id=" <> lamp.id <> "&name=" <> lamp.name) "on"
-          else ovalButton "power-off" ("/home/switchLamp?toOn=true&id=" <> lamp.id <> "&name=" <> lamp.name) "off"
+          then onOffButton ("/home/switchLamp?toOn=false&id=" <> lamp.id <> "&name=" <> lamp.name) "on" (not isReachable)
+          else onOffButton ("/home/switchLamp?toOn=true&id=" <> lamp.id <> "&name=" <> lamp.name) "off" (not isReachable)
         ovalButtonWithDropdown
           "palette"
           ("/home/setColorTemperature?id=" <> lamp.id <> "&name=" <> lamp.name)
@@ -107,6 +105,7 @@ lampCard lamp lights = do
             (2500, "2500K"),
             (2202, "2202K")
           ]
+          (not isOn || not isReachable)
         ovalButtonWithDropdown
           "sun"
           ("/home/setLightLevel?id=" <> lamp.id <> "&name=" <> lamp.name)
@@ -123,19 +122,36 @@ lampCard lamp lights = do
             (10, "10%"),
             (1, "1%")
           ]
+          (not isOn || not isReachable)
 
-ovalButton :: Text -> Text -> Text -> Html ()
-ovalButton icon url info = do
+onOffButton :: Text -> Text -> Bool -> Html ()
+onOffButton _ _ True = do
+  button_
+    [ class_ "flex items-center justify-between w-24 sm:w-36 h-12 px-3 rounded-full bg-gray-200 text-gray-500 cursor-not-allowed",
+      disabled_ ""
+    ]
+    $ do
+      i_ [class_ "fas fa-power-off"] ""
+      span_ [class_ "flex-grow text-center"] "offline"
+onOffButton url info False = do
   button_
     [ class_ "flex items-center justify-between w-24 sm:w-36 h-12 px-3 rounded-full bg-white shadow-md border border-gray-300",
       hxGet_ url
     ]
     $ do
-      i_ [class_ $ "fas fa-" <> icon <> " text-gray-600"] ""
+      i_ [class_ "fas fa-power-off text-gray-600"] ""
       span_ [class_ "flex-grow text-center text-gray-800"] $ toHtml info
 
-ovalButtonWithDropdown :: Text -> Text -> Text -> [(Int, Text)] -> Html ()
-ovalButtonWithDropdown icon url info options = do
+ovalButtonWithDropdown :: Text -> Text -> Text -> [(Int, Text)] -> Bool -> Html ()
+ovalButtonWithDropdown icon _ info _ True = do
+  button_
+    [ class_ "flex items-center justify-between w-24 sm:w-36 h-12 px-3 rounded-full bg-gray-200 text-gray-500 cursor-not-allowed",
+      disabled_ ""
+    ]
+    $ do
+      i_ [class_ $ "fas fa-" <> icon] ""
+      span_ [class_ "flex-grow text-center"] $ toHtml info
+ovalButtonWithDropdown icon url info options False = do
   div_ [class_ "relative inline-block w-24 sm:w-36"] $ do
     button_
       [ class_ "flex items-center justify-between w-full h-12 px-3 rounded-full bg-white shadow-md border border-gray-300"
