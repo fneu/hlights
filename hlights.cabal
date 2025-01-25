@@ -35,7 +35,8 @@ library
                       Dirigera.Devices,
                       Env,
                       Pages.Home,
-                      Pages.Connection
+                      Pages.Connection,
+                      Pages.Debug
     -- other-modules:
     -- other-extensions:
     build-depends:    base
