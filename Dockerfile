@@ -19,7 +19,7 @@ RUN cabal build --only-dependencies
 COPY . .
 
 # Build and install the `hlights` executable into /usr/local/bin
-RUN cabal install hlights --installdir=/usr/local/bin --install-method=copy
+RUN cabal install exe:hlights --installdir=/usr/local/bin --install-method=copy
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  2. Runtime Stage
