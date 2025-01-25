@@ -1,5 +1,6 @@
 module Pages.Home (homeRoutes, homePage) where
 
+import Control.Concurrent.STM (atomically, writeTVar)
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
@@ -9,7 +10,7 @@ import Data.List (nub)
 import Data.Map qualified as M
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
-import Dirigera (setColorTemperature, setLightLevel, switchIsOn)
+import Dirigera (fetchLights, setColorTemperature, setLightLevel, switchIsOn)
 import Dirigera.Devices
 import Env (AppM, Env (..))
 import Layout (baseLayout)
@@ -21,9 +22,10 @@ homeRoutes :: ScottyT AppM ()
 homeRoutes = do
   get "/home" $ do
     envLights <- lift $ asks (.lights)
-    lights <- liftIO $ readTVarIO envLights
-    let lamps = nub $ concatMap (.deviceSet) (M.elems lights)
-    html $ renderText $ homePage lamps lights
+    fetchedLights <- lift fetchLights
+    liftIO $ atomically $ writeTVar envLights fetchedLights
+    let lamps = nub $ concatMap (.deviceSet) (M.elems fetchedLights)
+    html $ renderText $ baseLayout $ homePage lamps fetchedLights
   get "/home/switchLamp" $ do
     lampId <- queryParam "id"
     lampName <- queryParam "name"
@@ -53,12 +55,16 @@ homeRoutes = do
     html $ renderText $ lampCard deviceSet lights
 
 homePage :: [DeviceSet] -> M.Map Text Device -> Html ()
-homePage lamps lights = baseLayout $ do
-  div_ [class_ "max-w-lg mx-auto p-4 space-y-4"] $ do
-    forM_ lamps $ \lamp -> lampCard lamp lights
+homePage lamps lights = do
+  div_
+    [ id_ "homePage",
+      class_ "flex flex-col items-center max-w-lg mx-auto p-4 space-y-4",
+      hxSwap_ "outerHTML"
+    ]
+    $ do
+      forM_ lamps $ \lamp -> lampCard lamp lights
 
 -- TODO: check is isReachable
--- TODO: refresh button
 
 lampCard :: DeviceSet -> M.Map Text Device -> Html ()
 lampCard lamp lights = do
