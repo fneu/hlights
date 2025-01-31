@@ -1,31 +1,45 @@
 module Pages.Home (homeRoutes, homePage) where
 
+import Control.Concurrent (threadDelay)
 import Control.Concurrent.STM (atomically, writeTVar)
 import Control.Concurrent.STM.TVar (readTVarIO)
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Reader (asks)
+import Control.Monad.Trans.Reader (ask, asks)
 import Data.List (nub)
 import Data.Map qualified as M
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
+import Data.Time
 import Dirigera (fetchLights, setColorTemperature, setLightLevel, switchIsOn)
 import Dirigera.Devices
-import Env (AppM, Env (..))
+import Env (AppM, Env (..), runApp)
 import Layout (baseLayout)
 import Lucid
 import Lucid.Htmx
+import Storage (Schedule (..), getCurrentSchedule)
 import Web.Scotty.Trans (ScottyT, get, html, queryParam)
 
 homeRoutes :: ScottyT AppM ()
 homeRoutes = do
   get "/home" $ do
+    env <- lift ask
     envLights <- lift $ asks (.lights)
     fetchedLights <- lift fetchLights
     liftIO $ atomically $ writeTVar envLights fetchedLights
     let lamps = nub $ concatMap (.deviceSet) (M.elems fetchedLights)
-    html $ renderText $ baseLayout $ homePage lamps fetchedLights
+    let lampSchedulesActions = map (\lamp -> (lamp.id, getCurrentSchedule lamp.id)) lamps
+    lampSchedules <- liftIO $ do
+      results <-
+        mapM
+          ( \(lampId, action) -> do
+              sched <- runApp env action
+              return (lampId, sched)
+          )
+          lampSchedulesActions
+      return (M.fromList results)
+    html $ renderText $ baseLayout $ homePage lamps fetchedLights lampSchedules
   get "/home/switchLamp" $ do
     lampId <- queryParam "id"
     lampName <- queryParam "name"
@@ -34,7 +48,8 @@ homeRoutes = do
     lift $ switchIsOn deviceSet toOn
     envLights <- lift $ asks (.lights)
     lights <- liftIO $ readTVarIO envLights
-    html $ renderText $ lampCard deviceSet lights
+    schedule <- lift $ getCurrentSchedule lampId
+    html $ renderText $ lampCard deviceSet lights schedule
   get "/home/setLightLevel" $ do
     lampId <- queryParam "id"
     lampName <- queryParam "name"
@@ -43,7 +58,8 @@ homeRoutes = do
     lift $ setLightLevel deviceSet lightLevel 500
     envLights <- lift $ asks (.lights)
     lights <- liftIO $ readTVarIO envLights
-    html $ renderText $ lampCard deviceSet lights
+    schedule <- lift $ getCurrentSchedule lampId
+    html $ renderText $ lampCard deviceSet lights schedule
   get "/home/setColorTemperature" $ do
     lampId <- queryParam "id"
     lampName <- queryParam "name"
@@ -52,26 +68,42 @@ homeRoutes = do
     lift $ setColorTemperature deviceSet colorTemperature 500
     envLights <- lift $ asks (.lights)
     lights <- liftIO $ readTVarIO envLights
-    html $ renderText $ lampCard deviceSet lights
+    schedule <- lift $ getCurrentSchedule lampId
+    html $ renderText $ lampCard deviceSet lights schedule
+  get "/home/resetToSchedule" $ do
+    -- WARNING: currently not considering allowDarken and allowBrighten
+    lampId <- queryParam "id"
+    lampName <- queryParam "name"
+    maybeSchedule <- lift $ getCurrentSchedule lampId
+    let schedule = fromMaybe (Schedule {scheduleId = 0, lampId = "", timeOfDay = TimeOfDay 0 0 0, brightness = 100, colorTemperature = 3000, allowBrighten = True, allowDarken = True}) maybeSchedule
+    let deviceSet = DeviceSet {name = lampName, id = lampId}
+    lift $ setLightLevel deviceSet schedule.brightness 500
+    liftIO $ threadDelay $ 200 * 1000
+    lift $ setColorTemperature deviceSet schedule.colorTemperature 500
+    envLights <- lift $ asks (.lights)
+    lights <- liftIO $ readTVarIO envLights
+    html $ renderText $ lampCard deviceSet lights maybeSchedule
 
-homePage :: [DeviceSet] -> M.Map Text Device -> Html ()
-homePage lamps lights = do
+homePage :: [DeviceSet] -> M.Map Text Device -> M.Map Text (Maybe Schedule) -> Html ()
+homePage lamps lights schedules = do
   div_
     [ id_ "homePage",
       class_ "flex flex-col items-center md:items-center md:max-w-2xl mx-auto p-4 space-y-4 w-full"
     ]
     $ do
-      forM_ lamps $ \lamp -> lampCard lamp lights
+      forM_ lamps $ \lamp -> lampCard lamp lights (fromMaybe Nothing (M.lookup lamp.id schedules))
 
-lampCard :: DeviceSet -> M.Map Text Device -> Html ()
-lampCard lamp lights = do
+lampCard :: DeviceSet -> M.Map Text Device -> Maybe Schedule -> Html ()
+lampCard lamp lights maybeSchedule = do
   let lampDevices = filter (\d -> lamp `elem` d.deviceSet) (M.elems lights)
   -- TODO: Implement schedule check
-  let onSchedule = lamp.name == "Wohnzimmerlampe"
   let isOn = any (\d -> fromMaybe False d.attributes.isOn) lampDevices
   let isReachable = any (\d -> d.isReachable) lampDevices
   let lightLevel = fromMaybe 0 (head lampDevices).attributes.lightLevel
   let colorTemperature = fromMaybe 0 (head lampDevices).attributes.colorTemperature
+  let onSchedule = case maybeSchedule of
+        Just schedule -> colorTemperature == schedule.colorTemperature && lightLevel == schedule.brightness
+        Nothing -> False
   div_
     [ class_ "flex flex-col bg-gray-50 p-3 rounded shadow space-y-4 w-full",
       hxTarget_ "this",
@@ -90,8 +122,12 @@ lampCard lamp lights = do
           ]
           "Schedule"
         if not onSchedule
-          then button_ [class_ "inline-block rounded-md px-3 py-1 w-12 h-12 bg-white shadow-md border border-gray-300"] $ do
-            i_ [class_ "fas fa-clock-rotate-left text-gray-600"] ""
+          then button_
+            [ class_ "inline-block rounded-md px-3 py-1 w-12 h-12 bg-white shadow-md border border-gray-300",
+              hxGet_ ("/home/resetToSchedule?id=" <> lamp.id <> "&name=" <> lamp.name)
+            ]
+            $ do
+              i_ [class_ "fas fa-clock-rotate-left text-gray-600"] ""
           else mempty
       div_ [class_ "flex items-center justify-between"] $ do
         if isOn

@@ -3,14 +3,12 @@ module Storage
     getProperty,
     updateProperty,
     Schedule (..),
-    listSchedules,
     listSchedulesByLampId,
     addSchedule,
-    getSchedule,
-    updateSchedule,
     deleteSchedule,
     timeOfDayToMinutes,
     minutesToTimeOfDay,
+    getCurrentSchedule,
   )
 where
 
@@ -18,7 +16,9 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Reader (asks)
 import Data.Int (Int64)
 import Data.Text (Text)
+import Data.Time (LocalTime (localTimeOfDay), UTCTime, getCurrentTime)
 import Data.Time.LocalTime (TimeOfDay (..))
+import Data.Time.Zones (loadTZFromDB, utcToLocalTimeTZ)
 import Database.SQLite.Simple
 import Env (AppM, Env (..))
 
@@ -162,16 +162,51 @@ listSchedulesByLampId lampId = do
       \ ORDER BY timeOfDayMinutes ASC"
       (Only lampId)
 
--- | List all schedules from the DB, returning them as Haskell values.
-listSchedules :: AppM [Schedule]
-listSchedules = do
+getCurrentSchedule :: Text -> AppM (Maybe Schedule)
+getCurrentSchedule lampId = do
+  conn <- asks (\e -> e.conn)
+  currentTime <- liftIO $ getCurrentTime >>= utcToLocalTime
+  let minutes = timeOfDayToMinutes currentTime
+  result <-
+    liftIO $
+      query
+        conn
+        "SELECT id, lampId, timeOfDayMinutes, brightness, colorTemperature, allowBrighten, allowDarken \
+        \ FROM Schedules \
+        \ WHERE lampId = ? \
+        \ AND timeOfDayMinutes <= ? \
+        \ ORDER BY timeOfDayMinutes DESC \
+        \ LIMIT 1"
+        (lampId, minutes)
+
+  case result of
+    [schedule] -> return $ Just schedule
+    _ -> getLatestSchedule lampId
+
+getLatestSchedule :: Text -> AppM (Maybe Schedule)
+getLatestSchedule lampId = do
   conn <- asks (.conn)
-  liftIO $
-    query_
-      conn
-      "SELECT id, lampId, timeOfDayMinutes, brightness, \
-      \       colorTemperature, allowBrighten, allowDarken \
-      \ FROM Schedules"
+  result <-
+    liftIO $
+      query
+        conn
+        "SELECT id, lampId, timeOfDayMinutes, brightness, colorTemperature, allowBrighten, allowDarken \
+        \ FROM Schedules \
+        \ WHERE lampId = ? \
+        \ ORDER BY timeOfDayMinutes DESC \
+        \ LIMIT 1"
+        (Only lampId)
+
+  case result of
+    [schedule] -> return $ Just schedule
+    _ -> return Nothing
+
+-- You might need a function to convert UTC time to local time for `timeOfDayToMinutes` to work as expected:
+utcToLocalTime :: UTCTime -> IO TimeOfDay
+-- TODO: add timezone to settings
+utcToLocalTime utcTime = do
+  tz <- loadTZFromDB "Europe/Berlin"
+  pure $ localTimeOfDay $ utcToLocalTimeTZ tz utcTime
 
 -- | Insert a new schedule. Return the row ID (AUTOINCREMENT).
 --   We'll let the database assign the 'id', so we only supply the fields
@@ -206,57 +241,6 @@ addSchedule lamp tod br ct ab ad = do
         ad
       )
     lastInsertRowId conn
-
--- | Get a single Schedule by ID (if it exists).
-getSchedule :: Int -> AppM (Maybe Schedule)
-getSchedule sid = do
-  conn <- asks (.conn)
-  rows <-
-    liftIO $
-      query
-        conn
-        "SELECT id, lampId, timeOfDayMinutes, brightness, \
-        \       colorTemperature, allowBrighten, allowDarken \
-        \ FROM Schedules WHERE id = ? LIMIT 1"
-        (Only sid)
-  pure $ case rows of
-    [] -> Nothing
-    (x : _) -> Just x
-
--- | Update an existing schedule by ID.
-updateSchedule ::
-  -- | scheduleId
-  Int ->
-  -- | lampId
-  Text ->
-  -- | timeOfDay
-  TimeOfDay ->
-  -- | brightness
-  Int ->
-  -- | colorTemperature
-  Int ->
-  -- | allowBrighten
-  Bool ->
-  -- | allowDarken
-  Bool ->
-  AppM ()
-updateSchedule sId lamp tod br ct ab ad = do
-  conn <- asks (.conn)
-  liftIO $
-    execute
-      conn
-      "UPDATE Schedules \
-      \ SET lampId=?, timeOfDayMinutes=?, brightness=?, \
-      \     colorTemperature=?, allowBrighten=?, allowDarken=? \
-      \ WHERE id=?"
-      ( lamp,
-        timeOfDayToMinutes tod,
-        br,
-        ct,
-        ab,
-        ad,
-        sId
-      )
 
 -- | Delete a schedule by its ID.
 deleteSchedule :: Int -> AppM ()
