@@ -9,6 +9,7 @@ import Layout (layoutRoutes)
 import Pages.Connection (connectionRoutes)
 import Pages.Debug (debugRoutes)
 import Pages.Home (homeRoutes)
+import Pages.Schedule (scheduleRoutes)
 import Storage
 import Web.Scotty.Trans (get, redirect, scottyT)
 
@@ -30,4 +31,5 @@ main = do
       layoutRoutes
       connectionRoutes
       homeRoutes
+      scheduleRoutes
       debugRoutes

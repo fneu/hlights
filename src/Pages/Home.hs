@@ -84,7 +84,11 @@ lampCard lamp lights = do
           span_ [class_ "text-lg"] $ toHtml $ show $ length lampDevices
           i_ [class_ "far fa-lightbulb"] ""
       div_ [class_ "flex items-center justify-center space-x-4"] $ do
-        button_ [class_ "inline-block rounded-md px-3 py-1 flex-grow h-12 bg-white shadow-md border border-gray-300"] "Schedule"
+        a_
+          [ class_ "inline-block rounded-md px-3 py-1 flex-grow h-12 bg-white shadow-md border border-gray-300 text-center leading-[2.5rem]",
+            href_ ("/home/schedule?lampId=" <> lamp.id)
+          ]
+          "Schedule"
         if not onSchedule
           then button_ [class_ "inline-block rounded-md px-3 py-1 w-12 h-12 bg-white shadow-md border border-gray-300"] $ do
             i_ [class_ "fas fa-clock-rotate-left text-gray-600"] ""
