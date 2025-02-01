@@ -63,6 +63,7 @@ library
                     , time
                     , http-types
                     , tz
+                    , tzdata
     hs-source-dirs:   src
     default-language: GHC2021
 
