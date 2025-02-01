@@ -33,6 +33,7 @@ library
                       Storage,
                       Dirigera,
                       Dirigera.Devices,
+                      Scheduler,
                       Env,
                       Pages.Home,
                       Pages.Connection,

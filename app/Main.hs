@@ -10,6 +10,7 @@ import Pages.Connection (connectionRoutes)
 import Pages.Debug (debugRoutes)
 import Pages.Home (homeRoutes)
 import Pages.Schedule (scheduleRoutes)
+import Scheduler (startScheduleManager)
 import Storage
 import Web.Scotty.Trans (get, redirect, scottyT)
 
@@ -25,6 +26,7 @@ main = do
         fetchedLights <- runApp (Env conn lights) fetchLights
         atomically $ writeTVar lights fetchedLights
       else putStrLn "Not connected to Dirigera, Proceeding without initial lights."
+    runApp (Env conn lights) startScheduleManager
 
     scottyT 3000 (runApp $ Env conn lights) $ do
       get "/" $ redirect "/home"

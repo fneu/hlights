@@ -4,11 +4,13 @@ module Storage
     updateProperty,
     Schedule (..),
     listSchedulesByLampId,
+    listSchedulesByMinute,
     addSchedule,
     deleteSchedule,
     timeOfDayToMinutes,
     minutesToTimeOfDay,
     getCurrentSchedule,
+    utcToLocalTime,
   )
 where
 
@@ -161,6 +163,18 @@ listSchedulesByLampId lampId = do
       \ WHERE lampId = ? \
       \ ORDER BY timeOfDayMinutes ASC"
       (Only lampId)
+
+listSchedulesByMinute :: Int -> AppM [Schedule]
+listSchedulesByMinute minute = do
+  conn <- asks (.conn)
+  liftIO $
+    query
+      conn
+      "SELECT id, lampId, timeOfDayMinutes, brightness, colorTemperature, allowBrighten, allowDarken \
+      \ FROM Schedules \
+      \ WHERE timeOfDayMinutes = ? \
+      \ ORDER BY timeOfDayMinutes ASC"
+      (Only minute)
 
 getCurrentSchedule :: Text -> AppM (Maybe Schedule)
 getCurrentSchedule lampId = do

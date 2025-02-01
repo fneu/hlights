@@ -71,7 +71,6 @@ homeRoutes = do
     schedule <- lift $ getCurrentSchedule lampId
     html $ renderText $ lampCard deviceSet lights schedule
   get "/home/resetToSchedule" $ do
-    -- WARNING: currently not considering allowDarken and allowBrighten
     lampId <- queryParam "id"
     lampName <- queryParam "name"
     maybeSchedule <- lift $ getCurrentSchedule lampId
