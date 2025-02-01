@@ -1,5 +1,6 @@
 module Main where
 
+import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (atomically, newTVarIO, writeTVar)
 import Control.Exception (bracket)
 import Database.SQLite.Simple
@@ -12,6 +13,7 @@ import Pages.Home (homeRoutes)
 import Pages.Schedule (scheduleRoutes)
 import Scheduler (startScheduleManager)
 import Storage
+import Watch (connectIgnoringCert)
 import Web.Scotty.Trans (get, redirect, scottyT)
 
 main :: IO ()
@@ -27,6 +29,8 @@ main = do
         atomically $ writeTVar lights fetchedLights
       else putStrLn "Not connected to Dirigera, Proceeding without initial lights."
     runApp (Env conn lights) startScheduleManager
+    _ <- forkIO $ do
+      runApp (Env conn lights) connectIgnoringCert
 
     scottyT 3000 (runApp $ Env conn lights) $ do
       get "/" $ redirect "/home"

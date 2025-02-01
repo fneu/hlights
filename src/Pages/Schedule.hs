@@ -44,7 +44,7 @@ scheduleRoutes = do
     lampId <- queryParam "lampId"
     envLights <- lift $ asks (.lights)
     lights <- liftIO $ readTVarIO envLights
-    let validLamps = nub $ concatMap (.deviceSet) (M.elems lights)
+    let validLamps = nub $ concatMap (\l -> fromMaybe [] l.deviceSet) (M.elems lights)
     if lampId `elem` map (.id) validLamps
       then do
         schedules <- lift $ listSchedulesByLampId lampId
@@ -102,7 +102,7 @@ scheduleRoutes = do
 
     envLights <- lift $ asks (.lights)
     lights <- liftIO $ readTVarIO envLights
-    let lamps = nub $ concatMap (.deviceSet) (M.elems lights)
+    let lamps = nub $ concatMap (\l -> fromMaybe [] l.deviceSet) (M.elems lights)
     let lamp = head $ filter (\l -> l.id == lampId) lamps
 
     lift $ setLightLevel lamp brightness 500

@@ -13,7 +13,7 @@ import Data.Map qualified as M
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, unpack)
 import Data.Text.Encoding (encodeUtf8)
-import Dirigera.Devices (Attributes (..), Device (..), DeviceSet (..))
+import Dirigera.Devices (Attributes (..), Device (..), DeviceSet (..), mergeAttributes)
 import Env
 import Network.HTTP.Simple
 import Storage
@@ -131,9 +131,23 @@ switchIsOn device setOn = do
           Just $
             M.map
               ( \d ->
-                  if device `elem` d.deviceSet
+                  if device `elem` fromMaybe [] d.deviceSet
                     then
-                      d {attributes = d.attributes {isOn = Just setOn}}
+                      d
+                        { attributes =
+                            mergeAttributes
+                              d.attributes
+                              ( Just
+                                  ( Attributes
+                                      { isOn = Just setOn,
+                                        lightLevel = Nothing,
+                                        colorTemperatureMin = Nothing,
+                                        colorTemperatureMax = Nothing,
+                                        colorTemperature = Nothing
+                                      }
+                                  )
+                              )
+                        }
                     else d
               )
               l
@@ -156,9 +170,23 @@ setColorTemperature device temp transitionTime = do
           Just $
             M.map
               ( \d ->
-                  if device `elem` d.deviceSet
+                  if device `elem` fromMaybe [] d.deviceSet
                     then
-                      d {attributes = d.attributes {colorTemperature = Just temp}}
+                      d
+                        { attributes =
+                            mergeAttributes
+                              d.attributes
+                              ( Just
+                                  ( Attributes
+                                      { isOn = Nothing,
+                                        lightLevel = Nothing,
+                                        colorTemperatureMin = Nothing,
+                                        colorTemperatureMax = Nothing,
+                                        colorTemperature = Just temp
+                                      }
+                                  )
+                              )
+                        }
                     else d
               )
               l
@@ -179,9 +207,23 @@ setLightLevel device level transitionTime = do
           Just $
             M.map
               ( \d ->
-                  if device `elem` d.deviceSet
+                  if device `elem` fromMaybe [] d.deviceSet
                     then
-                      d {attributes = d.attributes {lightLevel = Just level}}
+                      d
+                        { attributes =
+                            mergeAttributes
+                              d.attributes
+                              ( Just
+                                  ( Attributes
+                                      { isOn = Nothing,
+                                        lightLevel = Just level,
+                                        colorTemperatureMin = Nothing,
+                                        colorTemperatureMax = Nothing,
+                                        colorTemperature = Nothing
+                                      }
+                                  )
+                              )
+                        }
                     else d
               )
               l

@@ -38,7 +38,8 @@ library
                       Pages.Home,
                       Pages.Connection,
                       Pages.Debug,
-                      Pages.Schedule
+                      Pages.Schedule,
+                      Watch
     -- other-modules:
     -- other-extensions:
     build-depends:    base
@@ -63,7 +64,12 @@ library
                     , time
                     , http-types
                     , tz
-                    , tzdata
+                    , websockets
+                    , case-insensitive
+                    , tls
+                    , x509-validation
+                    , data-default
+                    , network-simple
     hs-source-dirs:   src
     default-language: GHC2021
 

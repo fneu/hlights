@@ -14,7 +14,7 @@ import Data.Time
     getCurrentTime,
   )
 import Dirigera (setColorTemperature, setLightLevel)
-import Dirigera.Devices (Attributes (..), Device (..), DeviceSet (..))
+import Dirigera.Devices (Attributes (..), Device (..), DeviceSet (..), forceAttributes)
 import Env (AppM, Env (..), runApp)
 import Storage (Schedule (..), listSchedulesByMinute, timeOfDayToMinutes, utcToLocalTime)
 
@@ -45,12 +45,12 @@ applySchedule schedule = do
   let lampId = schedule.lampId
   envLights <- asks (.lights)
   lights <- liftIO $ readTVarIO envLights
-  let lamps = nub $ concatMap (.deviceSet) (M.elems lights)
+  let lamps = nub $ concatMap (\l -> fromMaybe [] l.deviceSet) (M.elems lights)
   let maybeLamps = filter (\lamp -> lamp.id == lampId) lamps
   unless (null maybeLamps) $ do
     let deviceSet = head maybeLamps
-    let lampDevices = filter (\d -> deviceSet `elem` d.deviceSet) (M.elems lights)
-    let currentBrightness = fromMaybe 0 (head lampDevices).attributes.lightLevel
+    let lampDevices = filter (\d -> deviceSet `elem` fromMaybe [] d.deviceSet) (M.elems lights)
+    let currentBrightness = fromMaybe 0 (forceAttributes (head lampDevices).attributes).lightLevel
 
     let targetBrightness = schedule.brightness
     let targetColorTemperature = schedule.colorTemperature

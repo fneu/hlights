@@ -11,6 +11,7 @@ import Data.List (nub)
 import Data.Map qualified as M
 import Data.Maybe (fromMaybe)
 import Data.Text (Text, pack)
+import Data.Text.Lazy qualified as TL
 import Data.Time
 import Dirigera (fetchLights, setColorTemperature, setLightLevel, switchIsOn)
 import Dirigera.Devices
@@ -19,7 +20,7 @@ import Layout (baseLayout)
 import Lucid
 import Lucid.Htmx
 import Storage (Schedule (..), getCurrentSchedule)
-import Web.Scotty.Trans (ScottyT, get, html, queryParam)
+import Web.Scotty.Trans (ScottyT, get, html, queryParam, redirect)
 
 homeRoutes :: ScottyT AppM ()
 homeRoutes = do
@@ -28,7 +29,7 @@ homeRoutes = do
     envLights <- lift $ asks (.lights)
     fetchedLights <- lift fetchLights
     liftIO $ atomically $ writeTVar envLights fetchedLights
-    let lamps = nub $ concatMap (.deviceSet) (M.elems fetchedLights)
+    let lamps = nub $ concatMap (\l -> fromMaybe [] l.deviceSet) (M.elems fetchedLights)
     let lampSchedulesActions = map (\lamp -> (lamp.id, getCurrentSchedule lamp.id)) lamps
     lampSchedules <- liftIO $ do
       results <-
@@ -49,7 +50,9 @@ homeRoutes = do
     envLights <- lift $ asks (.lights)
     lights <- liftIO $ readTVarIO envLights
     schedule <- lift $ getCurrentSchedule lampId
-    html $ renderText $ lampCard deviceSet lights schedule
+    if toOn
+      then redirect $ "/home/resetToSchedule?id=" <> TL.fromStrict lampId <> "&name=" <> TL.fromStrict lampName
+      else html $ renderText $ lampCard deviceSet lights schedule
   get "/home/setLightLevel" $ do
     lampId <- queryParam "id"
     lampName <- queryParam "name"
@@ -77,7 +80,6 @@ homeRoutes = do
     let schedule = fromMaybe (Schedule {scheduleId = 0, lampId = "", timeOfDay = TimeOfDay 0 0 0, brightness = 100, colorTemperature = 3000, allowBrighten = True, allowDarken = True}) maybeSchedule
     let deviceSet = DeviceSet {name = lampName, id = lampId}
     lift $ setLightLevel deviceSet schedule.brightness 500
-    liftIO $ threadDelay $ 200 * 1000
     lift $ setColorTemperature deviceSet schedule.colorTemperature 500
     envLights <- lift $ asks (.lights)
     lights <- liftIO $ readTVarIO envLights
@@ -94,12 +96,11 @@ homePage lamps lights schedules = do
 
 lampCard :: DeviceSet -> M.Map Text Device -> Maybe Schedule -> Html ()
 lampCard lamp lights maybeSchedule = do
-  let lampDevices = filter (\d -> lamp `elem` d.deviceSet) (M.elems lights)
-  -- TODO: Implement schedule check
-  let isOn = any (\d -> fromMaybe False d.attributes.isOn) lampDevices
+  let lampDevices = filter (\d -> lamp `elem` fromMaybe [] d.deviceSet) (M.elems lights)
+  let isOn = any (\d -> fromMaybe False (forceAttributes d.attributes).isOn) lampDevices
   let isReachable = any (\d -> d.isReachable) lampDevices
-  let lightLevel = fromMaybe 0 (head lampDevices).attributes.lightLevel
-  let colorTemperature = fromMaybe 0 (head lampDevices).attributes.colorTemperature
+  let lightLevel = fromMaybe 0 (forceAttributes (head lampDevices).attributes).lightLevel
+  let colorTemperature = fromMaybe 0 (forceAttributes (head lampDevices).attributes).colorTemperature
   let onSchedule = case maybeSchedule of
         Just schedule -> colorTemperature == schedule.colorTemperature && lightLevel == schedule.brightness
         Nothing -> False
