@@ -61,4 +61,6 @@ applySchedule schedule = do
           || (currentBrightness > targetBrightness && allowDarken)
       )
       $ setLightLevel deviceSet targetBrightness 500
+    liftIO $ threadDelay $ 200 * 1000
     setColorTemperature deviceSet targetColorTemperature 500
+    liftIO $ threadDelay $ 200 * 1000
