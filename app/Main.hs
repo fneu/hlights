@@ -13,7 +13,7 @@ import Pages.Home (homeRoutes)
 import Pages.Schedule (scheduleRoutes)
 import Scheduler (startScheduleManager)
 import Storage
-import Watch (connectIgnoringCert)
+import Watch (startWatching)
 import Web.Scotty.Trans (get, redirect, scottyT)
 
 main :: IO ()
@@ -30,7 +30,7 @@ main = do
       else putStrLn "Not connected to Dirigera, Proceeding without initial lights."
     runApp (Env conn lights) startScheduleManager
     _ <- forkIO $ do
-      runApp (Env conn lights) connectIgnoringCert
+      runApp (Env conn lights) startWatching
 
     scottyT 3000 (runApp $ Env conn lights) $ do
       get "/" $ redirect "/home"

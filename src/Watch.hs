@@ -1,10 +1,10 @@
-module Watch (connectIgnoringCert) where
+module Watch (startWatching) where
 
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.STM (atomically, modifyTVar', readTVarIO)
+import Control.Exception (SomeException, try)
 import Control.Monad (forever)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Reader (ask)
 import Data.Aeson (eitherDecode)
 import Data.ByteString qualified as BS
@@ -14,6 +14,7 @@ import Data.CaseInsensitive (mk)
 import Data.Default (def)
 import Data.Map qualified as M
 import Data.Maybe (fromMaybe)
+import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Time (TimeOfDay (..))
 import Dirigera (authToken, ipAddr, setColorTemperature, setLightLevel)
@@ -73,62 +74,50 @@ clientApp env conn = do
 
 --------------------------------------------------------------------------------
 
--- | connectIgnoringCert:
---   1) Connect via TCP to host:port
---   2) Wrap in TLS, ignoring all certificate checks
---   3) Convert TLS.Context -> WebSockets Stream
---   4) runClientWithStream (passing custom Authorization header)
+connectOnce :: Text -> Text -> Env -> IO ()
+connectOnce host token env = do
+  let hostStr = T.unpack host
+      port :: Int = 8443
+  putStrLn $ "Attempting Dirigera connection to " ++ hostStr ++ ":" ++ show port
 
---------------------------------------------------------------------------------
--- connectIgnoringCert ::
---   -- | Host or IP, e.g. "192.168.178.21"
---   String ->
---   -- | Port, e.g. 8443
---   Int ->
---   -- | Bearer token
---   String ->
---   IO ()
-connectIgnoringCert :: AppM ()
-connectIgnoringCert = do
-  env <- ask
-  host <- ipAddr
-  let port :: Int = 8443
-  bearer <- authToken
-
-  liftIO $ putStrLn $ "Connecting to " ++ T.unpack host ++ " on port " ++ show port ++ ", ignoring cert checks..."
-
-  TCP.connect (T.unpack host) (show port) $ \(sock, _remoteAddr) -> do
-    --------------------------------------------------------------------------
-    -- 1) Create a TLS context that ignores cert validation
-    --------------------------------------------------------------------------
-    ctx <- TLS.contextNew sock (clientParams (T.unpack host))
+  TCP.connect hostStr (show port) $ \(sock, _remoteAddr) -> do
+    ctx <- TLS.contextNew sock (clientParams hostStr)
     TLS.handshake ctx
-
-    --------------------------------------------------------------------------
-    -- 2) Wrap the TLS context in a 'websockets' Stream
-    --------------------------------------------------------------------------
-    stream <- liftIO $ makeTLSStream ctx
-
-    --------------------------------------------------------------------------
-    -- 3) Provide custom headers (Authorization: Bearer xxxxx)
-    --------------------------------------------------------------------------
+    stream <- makeTLSStream ctx
     let headers =
           [ ( mk (BS8.pack "Authorization"),
-              BS8.pack ("Bearer " <> T.unpack bearer)
+              BS8.pack ("Bearer " <> T.unpack token)
             )
           ]
+    WS.runClientWithStream
+      stream
+      hostStr
+      "/v1"
+      WS.defaultConnectionOptions
+      headers
+      (clientApp env)
 
-    --------------------------------------------------------------------------
-    -- 4) Run the WebSocket client with this stream
-    --------------------------------------------------------------------------
-    liftIO $
-      WS.runClientWithStream
-        stream -- The 'Stream'
-        (T.unpack host)
-        "/v1" -- Host, Path
-        WS.defaultConnectionOptions
-        headers
-        (clientApp env)
+  putStrLn "Connection ended (runClientWithStream returned)."
+
+startWatching :: AppM ()
+startWatching = do
+  env <- ask
+  host <- ipAddr
+  bearer <- authToken
+  _ <- liftIO $ forkIO $ forever $ do
+    -- Attempt connection in a try/except block
+    eResult <- try (connectOnce host bearer env) :: IO (Either SomeException ())
+    case eResult of
+      Left ex -> do
+        putStrLn $ "Dirigera WS connection failed: " ++ show ex
+        putStrLn "Will retry in 5 seconds..."
+        threadDelay (5 * 1000000)
+      Right () -> do
+        -- The WS closed normally. Possibly the user or the hub ended it.
+        putStrLn "WebSocket closed gracefully; retrying in 5s..."
+        threadDelay (5 * 1000000)
+
+  return ()
 
 --------------------------------------------------------------------------------
 
