@@ -2,11 +2,13 @@ module Main where
 
 import Control.Concurrent (forkIO)
 import Control.Concurrent.STM (atomically, newTVarIO, writeTVar)
+import Control.Concurrent.STM.TChan (newTChanIO)
 import Control.Exception (bracket)
 import Database.SQLite.Simple
 import Dirigera (fetchLights, isConnected)
 import Env (Env (..), runApp)
 import Layout (layoutRoutes)
+import Logs (logRoutes)
 import Pages.Connection (connectionRoutes)
 import Pages.Debug (debugRoutes)
 import Pages.Home (homeRoutes)
@@ -22,20 +24,24 @@ main = do
   bracket (open dbFile) close $ \conn -> do
     initializeDB conn
     lights <- newTVarIO mempty
-    connected <- runApp (Env conn lights) isConnected
+    updateChan <- newTChanIO
+    logChan <- newTChanIO
+    let env = Env conn lights updateChan logChan
+    connected <- runApp env isConnected
     if connected
       then do
-        fetchedLights <- runApp (Env conn lights) fetchLights
+        fetchedLights <- runApp env fetchLights
         atomically $ writeTVar lights fetchedLights
       else putStrLn "Not connected to Dirigera, Proceeding without initial lights."
-    runApp (Env conn lights) startScheduleManager
+    runApp env startScheduleManager
     _ <- forkIO $ do
-      runApp (Env conn lights) startWatching
+      runApp env startWatching
 
-    scottyT 3000 (runApp $ Env conn lights) $ do
+    scottyT 3000 (runApp env) $ do
       get "/" $ redirect "/home"
       layoutRoutes
       connectionRoutes
       homeRoutes
       scheduleRoutes
       debugRoutes
+      logRoutes

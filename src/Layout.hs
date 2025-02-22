@@ -56,6 +56,11 @@ baseLayout content = html_ $ do
         crossorigin_ "anonymous"
       ]
       ("" :: Text)
+    script_
+      [ src_ "https://unpkg.com/htmx-ext-sse@2.2.2",
+        crossorigin_ "anonymous"
+      ]
+      ("" :: Text)
     link_ [rel_ "stylesheet", href_ "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"]
   body_ [class_ "bg-gray-100"] $ do
     -- Mobile menu

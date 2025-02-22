@@ -1,6 +1,7 @@
 module Env (Env (..), runApp, AppM) where
 
 import Control.Concurrent.STM (TVar)
+import Control.Concurrent.STM.TChan
 import Control.Monad.Trans.Reader (ReaderT, runReaderT)
 import Data.Map (Map)
 import Data.Text (Text)
@@ -9,7 +10,9 @@ import Dirigera.Devices (Device)
 
 data Env = Env
   { conn :: Connection,
-    lights :: TVar (Map Text Device)
+    lights :: TVar (Map Text Device),
+    lightUpdates :: TChan Text,
+    logs :: TChan Text
   }
 
 type AppM = ReaderT Env IO

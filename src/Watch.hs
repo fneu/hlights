@@ -2,6 +2,7 @@ module Watch (startWatching) where
 
 import Control.Concurrent (forkIO, threadDelay)
 import Control.Concurrent.STM (atomically, modifyTVar', readTVarIO)
+import Control.Concurrent.STM.TChan (writeTChan)
 import Control.Exception (SomeException, try)
 import Control.Monad (forever)
 import Control.Monad.IO.Class (liftIO)
@@ -44,6 +45,7 @@ clientApp env conn = do
         Left _ -> pure ()
         Right d -> do
           liftIO $ putStrLn $ "[Dirigera] Received Device: " <> show d.deviceData
+          liftIO $ atomically $ writeTChan env.logs $ "[Dirigera] Received Device: " <> T.pack (show d.deviceData)
           let newLight = d.deviceData
           lights <- liftIO $ readTVarIO env.lights
           case M.lookup newLight.id lights of
@@ -57,6 +59,7 @@ clientApp env conn = do
                 )
                 $ do
                   liftIO $ putStrLn "[Dirigera] Light is reachable or turned on, setting brightness and color temperature"
+                  liftIO $ atomically $ writeTChan env.logs "[Dirigera] Light is reachable or turned on, setting brightness and color temperature"
                   let lampId = (head $ fromMaybe [] oldLight.deviceSet).id
                   let lampName = (head $ fromMaybe [] oldLight.deviceSet).name
                   maybeSchedule <- getCurrentSchedule lampId

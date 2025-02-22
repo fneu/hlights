@@ -39,7 +39,8 @@ library
                       Pages.Connection,
                       Pages.Debug,
                       Pages.Schedule,
-                      Watch
+                      Watch,
+                      Logs
     -- other-modules:
     -- other-extensions:
     build-depends:    base

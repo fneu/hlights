@@ -11,6 +11,8 @@ import Dirigera.Devices
 import Env (AppM, Env (..))
 import Layout (baseLayout)
 import Lucid
+import Lucid.Base (makeAttributes)
+import Lucid.Htmx
 import Web.Scotty.Trans (ScottyT, get, html)
 
 debugRoutes :: ScottyT AppM ()
@@ -26,3 +28,10 @@ debugPage lights = baseLayout $ do
     div_ [class_ "p-4 border-b border-gray-200"] $ do
       h2_ [class_ "text-xl font-bold"] $ toHtml $ show lightId
       p_ $ toHtml $ show light
+  div_
+    [ hxExt_ "sse",
+      makeAttributes "sse-connect" "/logs",
+      makeAttributes "sse-swap" "message",
+      hxSwap_ "beforeend"
+    ]
+    $ toHtml ("logs will appear here" :: Text)
