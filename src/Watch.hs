@@ -60,15 +60,21 @@ clientApp env conn = do
                 $ do
                   liftIO $ putStrLn "[Dirigera] Light is reachable or turned on, setting brightness and color temperature"
                   liftIO $ atomically $ writeTChan env.logs "[Dirigera] Light is reachable or turned on, setting brightness and color temperature"
-                  let lampId = (head $ fromMaybe [] oldLight.deviceSet).id
-                  let lampName = (head $ fromMaybe [] oldLight.deviceSet).name
-                  maybeSchedule <- getCurrentSchedule lampId
-                  let schedule = fromMaybe (Schedule {scheduleId = 0, lampId = "", timeOfDay = TimeOfDay 0 0 0, brightness = 100, colorTemperature = 3000, allowBrighten = True, allowDarken = True}) maybeSchedule
-                  let deviceSet = DeviceSet {name = lampName, id = lampId}
-                  setLightLevel deviceSet schedule.brightness 1000
-                  liftIO $ threadDelay $ 100 * 1000
-                  setColorTemperature deviceSet schedule.colorTemperature 500
-                  liftIO $ threadDelay $ 100 * 1000
+                  let deviceSets = fromMaybe [] oldLight.deviceSet
+                  case deviceSets of
+                    [] -> do
+                      liftIO $ putStrLn $ "[Dirigera] No device sets found for light, skipping...oldLight: " ++ show oldLight ++ "; newLight: " ++ show newLight
+                      pure ()
+                    _ -> do
+                      let lampId = (head deviceSets).id
+                      let lampName = (head deviceSets).name
+                      maybeSchedule <- getCurrentSchedule lampId
+                      let schedule = fromMaybe (Schedule {scheduleId = 0, lampId = "", timeOfDay = TimeOfDay 0 0 0, brightness = 100, colorTemperature = 3000, allowBrighten = True, allowDarken = True}) maybeSchedule
+                      let deviceSet = DeviceSet {name = lampName, id = lampId}
+                      setLightLevel deviceSet schedule.brightness 1000
+                      liftIO $ threadDelay $ 100 * 1000
+                      setColorTemperature deviceSet schedule.colorTemperature 500
+                      liftIO $ threadDelay $ 100 * 1000
 
   -- Send a ping every 30s
   forever $ do
