@@ -18,7 +18,7 @@ import Data.Maybe (fromMaybe)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Time (TimeOfDay (..))
-import Dirigera (authToken, ipAddr, setColorTemperature, setLightAndColor, setLightLevel)
+import Dirigera (authToken, ipAddr, setColorTemperature, setLightLevel)
 import Dirigera.Devices (Attributes (..), Device (..), DeviceSet (..), MsgWithDeviceData (..), forceAttributes, mergeDevice)
 import Env (AppM, Env (..), runApp)
 import GHC.Base (when)
@@ -72,7 +72,9 @@ clientApp env conn = do
                       let schedule = fromMaybe (Schedule {scheduleId = 0, lampId = "", timeOfDay = TimeOfDay 0 0 0, brightness = 100, colorTemperature = 3000, allowBrighten = True, allowDarken = True}) maybeSchedule
                       let deviceSet = DeviceSet {name = lampName, id = lampId}
                       liftIO $ threadDelay $ 100 * 1000
-                      setLightAndColor deviceSet schedule.brightness schedule.colorTemperature 500
+                      setLightLevel deviceSet schedule.brightness 1000
+                      liftIO $ threadDelay $ 200 * 1000
+                      setColorTemperature deviceSet schedule.colorTemperature 500
                       liftIO $ threadDelay $ 100 * 1000
 
   -- Send a ping every 30s
