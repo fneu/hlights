@@ -1,4 +1,4 @@
-module Dirigera (switchIsOn, setColorTemperature, setLightLevel, baseURL, ipAddr, authToken, isConnected, isReachable, fetchLights) where
+module Dirigera (switchIsOn, setColorTemperature, setLightLevel, setLightAndColor, baseURL, ipAddr, authToken, isConnected, isReachable, fetchLights) where
 
 import Auth (noSSLVerifyManager)
 import Control.Concurrent.STM (atomically)
@@ -198,6 +198,43 @@ setLightLevel :: DeviceSet -> Int -> Milliseconds -> AppM ()
 setLightLevel device level transitionTime = do
   let url = "/devices/set/" <> device.id
   let body = [object ["attributes" .= object ["lightLevel" .= level], "transitionTime" .= transitionTime]]
+  success <- patchRequest url body
+  if success
+    then do
+      lights <- asks (.lights)
+      _ <- liftIO $ atomically $ do
+        modifyTVar' lights $ \l -> fromMaybe l $ do
+          Just $
+            M.map
+              ( \d ->
+                  if device `elem` fromMaybe [] d.deviceSet
+                    then
+                      d
+                        { attributes =
+                            mergeAttributes
+                              d.attributes
+                              ( Just
+                                  ( Attributes
+                                      { isOn = Nothing,
+                                        lightLevel = Just level,
+                                        colorTemperatureMin = Nothing,
+                                        colorTemperatureMax = Nothing,
+                                        colorTemperature = Nothing
+                                      }
+                                  )
+                              )
+                        }
+                    else d
+              )
+              l
+      pure ()
+    else do
+      pure ()
+
+setLightAndColor :: DeviceSet -> Int -> Int -> Milliseconds -> AppM ()
+setLightAndColor device level temp transitionTime = do
+  let url = "/devices/set/" <> device.id
+  let body = [object ["attributes" .= object ["lightLevel" .= level, "colorTemperature" .= temp], "transitionTime" .= transitionTime]]
   success <- patchRequest url body
   if success
     then do
