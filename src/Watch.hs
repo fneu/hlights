@@ -71,8 +71,9 @@ clientApp env conn = do
                       maybeSchedule <- getCurrentSchedule lampId
                       let schedule = fromMaybe (Schedule {scheduleId = 0, lampId = "", timeOfDay = TimeOfDay 0 0 0, brightness = 100, colorTemperature = 3000, allowBrighten = True, allowDarken = True}) maybeSchedule
                       let deviceSet = DeviceSet {name = lampName, id = lampId}
-                      setLightLevel deviceSet schedule.brightness 1000
                       liftIO $ threadDelay $ 100 * 1000
+                      setLightLevel deviceSet schedule.brightness 1000
+                      liftIO $ threadDelay $ 200 * 1000
                       setColorTemperature deviceSet schedule.colorTemperature 500
                       liftIO $ threadDelay $ 100 * 1000
 
